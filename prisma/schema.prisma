@@ -1,0 +1,111 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Organization (Church)
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  address     String?
+  phone       String?
+  email       String
+  logo        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  users       User[]
+  sermons     Sermon[]
+}
+
+// User (Media Team Member)
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String
+  password        String
+  role            String   @default("member") // admin, editor, member
+  avatar          String?
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  sermons         Sermon[]
+}
+
+// Sermon Recording
+model Sermon {
+  id            String   @id @default(cuid())
+  title         String
+  speaker       String
+  date          DateTime
+  description   String?
+  
+  // Audio file information
+  audioUrl      String
+  audioSize     Int      // File size in bytes
+  audioDuration Int      // Duration in seconds
+  audioFormat   String   // e.g., 'audio/webm', 'audio/wav'
+  
+  // Processing status
+  status        String   @default("pending") // pending, transcribing, processing, completed, failed
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  transcribedAt DateTime?
+  processedAt   DateTime?
+  
+  // Relationships
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recordedBy    User      @relation(fields: [recordedById], references: [id], onDelete: Cascade)
+  recordedById  String
+  
+  // AI Outputs
+  output        SermonOutput?
+}
+
+// AI Processing Results
+model SermonOutput {
+  id              String   @id @default(cuid())
+  sermonId        String   @unique
+  sermon          Sermon   @relation(fields: [sermonId], references: [id], onDelete: Cascade)
+  
+  // Full transcript
+  transcript      String   @default("")
+  transcriptWords Int      @default(0)
+  
+  // Structured summary
+  summary         String?
+  keyPoints       String   // JSON array of key points
+  mainThemes      String   // JSON array of themes
+  
+  // Biblical references
+  keyVerses       String   // JSON array of verse objects
+  references      String   // JSON array of all references found
+  
+  // Additional metadata
+  wordCount       Int      @default(0)
+  estimatedReadTime Int    @default(0) // In minutes
+  
+  // Processing details
+  processingTime  Int      // Time in milliseconds
+  aiModel         String   @default("whisper-v3")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
