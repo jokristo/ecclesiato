@@ -29,7 +29,7 @@ function DashboardContent() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                  ECCLESIA VOICE
+                  K-VOICE
                 </h1>
                 <p className="text-xs text-slate-600 dark:text-slate-400">
                   Sermon Capture & AI Processing
@@ -176,10 +176,10 @@ function DashboardContent() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              © 2024 ECCLESIA VOICE. All rights reserved.
+              © 2026 K-VOICE. All rights reserved.
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-500">
-              Powered by AI-driven sermon processing
+              Powered by Kristo agency
             </p>
           </div>
         </div>
