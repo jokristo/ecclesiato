@@ -8,6 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Play, Square, Trash2, Clock, Upload, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDuration } from '@/lib/utils'
+import {useState, useEffect} from 'react'
+
 
 export function AudioRecorder() {
   const {
@@ -171,6 +173,7 @@ interface RecordingItemProps {
   onDelete: () => void
   onDiscard: () => void
 }
+
 
 function RecordingItem({ recording, onPlay, onDelete, onDiscard }: RecordingItemProps) {
   const [isPlaying, setIsPlaying] = useState(false)
