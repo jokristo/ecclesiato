@@ -1,139 +1,79 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { existsSync } from 'fs'
+import { NextRequest, NextResponse } from 'next/server';
+import { serverFetch, mapSermon } from '@/lib/apiServer';
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+
+  const params = new URLSearchParams();
+  if (searchParams.get('organizationId')) params.set('org_id', searchParams.get('organizationId')!);
+  if (searchParams.get('status')) params.set('status', searchParams.get('status')!);
+  if (searchParams.get('speaker')) params.set('speaker', searchParams.get('speaker')!);
+
+  const query = params.toString() ? `?${params}` : '';
+
+  const { data, status } = await serverFetch<any[]>(`/sermons${query}`);
+
+  if (status >= 400) {
+    return NextResponse.json({ error: (data as any).detail ?? 'Failed to fetch sermons' }, { status });
+  }
+
+  return NextResponse.json({
+    success: true,
+    sermons: Array.isArray(data) ? data.map(mapSermon) : [],
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData()
-    
-    const title = formData.get('title') as string
-    const speaker = formData.get('speaker') as string
-    const date = formData.get('date') as string
-    const description = formData.get('description') as string
-    const organizationId = formData.get('organizationId') as string
-    const recordedById = formData.get('recordedById') as string
-    const audioFile = formData.get('audio') as File
-    
-    if (!title || !speaker || !date || !audioFile) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+    const formData = await request.formData();
+
+    const title = formData.get('title') as string;
+    const speaker = formData.get('speaker') as string;
+    const date = formData.get('date') as string;
+    const description = formData.get('description') as string | null;
+    const organizationId = formData.get('organizationId') as string;
+    const recordedById = formData.get('recordedById') as string;
+    const audioFile = formData.get('audio') as File | null;
+
+    if (!title || !speaker || !date) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-    
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'sermons')
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true })
-    }
-    
-    // Generate unique filename
-    const timestamp = Date.now()
-    const fileExtension = audioFile.name.split('.').pop() || 'webm'
-    const filename = `${timestamp}.${fileExtension}`
-    const filepath = join(uploadsDir, filename)
-    
-    // Save file
-    const bytes = await audioFile.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    await writeFile(filepath, buffer)
-    
-    // Get audio duration from form data or estimate
-    const audioDuration = parseInt(formData.get('duration') as string) || 0
-    const audioSize = audioFile.size
-    
-    // Create sermon record
-    const sermon = await db.sermon.create({
-      data: {
+
+    // 1. Create sermon metadata
+    const { data: sermon, status: createStatus } = await serverFetch<any>('/sermons', {
+      method: 'POST',
+      body: {
         title,
         speaker,
-        date: new Date(date),
+        date,
         description: description || null,
-        audioUrl: `/uploads/sermons/${filename}`,
-        audioSize,
-        audioDuration,
-        audioFormat: audioFile.type,
-        status: 'pending',
-        organizationId: organizationId || 'default',
-        recordedById: recordedById || 'default',
-      }
-    })
-    
-    return NextResponse.json({
-      success: true,
-      sermon: {
-        id: sermon.id,
-        title: sermon.title,
-        speaker: sermon.speaker,
-        audioUrl: sermon.audioUrl,
-        status: sermon.status,
-        createdAt: sermon.createdAt
-      }
-    })
-  } catch (error) {
-    console.error('Error creating sermon:', error)
-    return NextResponse.json(
-      { error: 'Failed to create sermon' },
-      { status: 500 }
-    )
-  }
-}
+        organization_id: organizationId || 'default',
+        recorded_by_id: recordedById || 'default',
+      },
+    });
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const organizationId = searchParams.get('organizationId')
-    const status = searchParams.get('status')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const offset = parseInt(searchParams.get('offset') || '0')
-    
-    const where: any = {}
-    if (organizationId) {
-      where.organizationId = organizationId
+    if (createStatus >= 400) {
+      return NextResponse.json(
+        { error: (sermon as any).detail ?? 'Failed to create sermon' },
+        { status: createStatus },
+      );
     }
-    if (status) {
-      where.status = status
+
+    // 2. Upload audio if provided
+    if (audioFile) {
+      const uploadForm = new FormData();
+      uploadForm.append('file', audioFile);
+
+      await serverFetch(`/sermons/${sermon.id}/upload`, {
+        method: 'POST',
+        body: uploadForm,
+        isFormData: true,
+      });
     }
-    
-    const [sermons, total] = await Promise.all([
-      db.sermon.findMany({
-        where,
-        include: {
-          output: true,
-          recordedBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
-        },
-        orderBy: {
-          date: 'desc'
-        },
-        take: limit,
-        skip: offset
-      }),
-      db.sermon.count({ where })
-    ])
-    
-    return NextResponse.json({
-      success: true,
-      sermons,
-      pagination: {
-        total,
-        limit,
-        offset,
-        hasMore: offset + sermons.length < total
-      }
-    })
+
+    return NextResponse.json({ success: true, sermon: mapSermon(sermon) });
   } catch (error) {
-    console.error('Error fetching sermons:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch sermons' },
-      { status: 500 }
-    )
+    console.error('Error creating sermon:', error);
+    return NextResponse.json({ error: 'Failed to create sermon' }, { status: 500 });
   }
 }

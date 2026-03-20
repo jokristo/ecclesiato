@@ -1,71 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { NextRequest, NextResponse } from 'next/server';
+import { serverFetch, PROGRESS_MAP } from '@/lib/apiServer';
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
-    const sermon = await db.sermon.findUnique({
-      where: { id: params.id },
-      select: {
-        id: true,
-        title: true,
-        speaker: true,
-        status: true,
-        createdAt: true,
-        transcribedAt: true,
-        processedAt: true,
-        output: {
-          select: {
-            id: true,
-            transcript: true,
-            summary: true,
-            transcriptWords: true,
-            processingTime: true
-          }
-        }
-      }
-    })
-    
-    if (!sermon) {
-      return NextResponse.json(
-        { error: 'Sermon not found' },
-        { status: 404 }
-      )
-    }
-    
-    // Calculate progress based on status
-    const progressMap: Record<string, number> = {
-      pending: 0,
-      transcribing: 30,
-      processing: 60,
-      completed: 100,
-      failed: 0
-    }
-    
-    return NextResponse.json({
-      success: true,
-      status: {
-        id: sermon.id,
-        title: sermon.title,
-        speaker: sermon.speaker,
-        currentStatus: sermon.status,
-        progress: progressMap[sermon.status] || 0,
-        hasTranscript: !!sermon.output?.transcript,
-        hasSummary: !!sermon.output?.summary,
-        transcriptWords: sermon.output?.transcriptWords || 0,
-        createdAt: sermon.createdAt,
-        transcribedAt: sermon.transcribedAt,
-        processedAt: sermon.processedAt,
-        processingTime: sermon.output?.processingTime
-      }
-    })
-  } catch (error) {
-    console.error('Error fetching sermon status:', error)
+  const { id } = await params;
+  const { data: sermon, status } = await serverFetch<any>(`/sermons/${id}`);
+
+  if (status >= 400) {
     return NextResponse.json(
-      { error: 'Failed to fetch sermon status' },
-      { status: 500 }
-    )
+      { error: (sermon as any).detail ?? 'Sermon not found' },
+      { status },
+    );
   }
+
+  const currentStatus: string = sermon.status ?? 'pending';
+
+  return NextResponse.json({
+    success: true,
+    status: {
+      id: sermon.id,
+      title: sermon.title,
+      speaker: sermon.speaker,
+      currentStatus,
+      progress: PROGRESS_MAP[currentStatus] ?? 0,
+      hasTranscript: !!sermon.output?.transcript,
+      hasSummary: !!sermon.output?.summary,
+      transcriptWords: sermon.output?.transcript_words ?? 0,
+      createdAt: sermon.created_at,
+      transcribedAt: sermon.transcribed_at ?? null,
+      processedAt: sermon.processed_at ?? null,
+      processingTime: sermon.output?.processing_time ?? null,
+    },
+  });
 }

@@ -1,70 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { NextRequest, NextResponse } from 'next/server';
+import { serverFetch, mapSermon } from '@/lib/apiServer';
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
-    const sermon = await db.sermon.findUnique({
-      where: { id: params.id },
-      include: {
-        output: true,
-        recordedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            slug: true
-          }
-        }
-      }
-    })
-    
-    if (!sermon) {
-      return NextResponse.json(
-        { error: 'Sermon not found' },
-        { status: 404 }
-      )
-    }
-    
-    return NextResponse.json({
-      success: true,
-      sermon
-    })
-  } catch (error) {
-    console.error('Error fetching sermon:', error)
+  const { id } = await params;
+  const { data, status } = await serverFetch<any>(`/sermons/${id}`);
+
+  if (status >= 400) {
     return NextResponse.json(
-      { error: 'Failed to fetch sermon' },
-      { status: 500 }
-    )
+      { error: (data as any).detail ?? 'Sermon not found' },
+      { status },
+    );
   }
+
+  return NextResponse.json({ success: true, sermon: mapSermon(data) });
 }
 
+// The k-voice backend does not expose a DELETE /sermons endpoint.
+// This stub returns 501 so existing callers get a clear error instead of 404.
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
-    const sermon = await db.sermon.delete({
-      where: { id: params.id }
-    })
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Sermon deleted successfully'
-    })
-  } catch (error) {
-    console.error('Error deleting sermon:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete sermon' },
-      { status: 500 }
-    )
-  }
+  return NextResponse.json(
+    { error: 'Delete is not supported by the k-voice backend' },
+    { status: 501 },
+  );
 }
