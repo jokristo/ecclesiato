@@ -35,58 +35,43 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-4">
       <div className="w-full max-w-md space-y-8">
-
-        {/* Logo */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-xl">
-            <Radio className="h-9 w-9 text-white" />
+        <div className="mb-8 text-center">
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-lg">
+            <Radio className="h-8 w-8 text-indigo-600" />
           </div>
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-              K-VOICE
-            </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Sermon Capture & AI Processing
-            </p>
-          </div>
+          <h1 className="mb-2 text-4xl font-bold text-white">K-Voice</h1>
+          <p className="text-indigo-100">Transcription de prédications pour églises</p>
         </div>
 
-        {/* Card */}
-        <Card className="shadow-lg border-slate-200 dark:border-slate-700">
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl text-slate-900 dark:text-white">
-              Connexion
-            </CardTitle>
-            <CardDescription className="text-slate-500 dark:text-slate-400">
-              Entrez vos identifiants pour accéder à votre espace
-            </CardDescription>
+        <Card className="shadow-2xl">
+          <CardHeader>
+            <CardTitle>Connexion</CardTitle>
+            <CardDescription>Connectez-vous pour accéder à votre espace</CardDescription>
           </CardHeader>
 
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username" className="text-slate-700 dark:text-slate-300">
-                  Email
-                </Label>
-                <Input
-                  id="username"
-                  type="email"
-                  placeholder="vous@exemple.com"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                  required
-                  className="border-slate-200 dark:border-slate-700 focus-visible:ring-emerald-500"
-                />
+                <Label htmlFor="username">Email</Label>
+                <div className="relative">
+                  <Input
+                    id="username"
+                    type="email"
+                    placeholder="pasteur@eglise.fr"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    required
+                    className="pr-3"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">
-                  Mot de passe
-                </Label>
+                <Label htmlFor="password">Mot de passe</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -97,36 +82,33 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
                     required
-                    className="border-slate-200 dark:border-slate-700 focus-visible:ring-emerald-500 pr-10"
+                    className="pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
                     tabIndex={-1}
                   >
-                    {showPassword
-                      ? <EyeOff className="h-4 w-4" />
-                      : <Eye className="h-4 w-4" />
-                    }
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
 
               {error && (
-                <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3">
-                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                  <p className="text-sm text-red-600">{error}</p>
                 </div>
               )}
 
               <Button
                 type="submit"
                 disabled={loading || !email || !password}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-11 transition-colors"
+                className="h-11 w-full bg-indigo-600 font-medium text-white hover:bg-indigo-700"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Connexion en cours…
                   </>
                 ) : (
@@ -137,9 +119,7 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-slate-400 dark:text-slate-500">
-          © 2026 K-VOICE — Powered by Kristo agency
-        </p>
+        <p className="text-center text-sm text-indigo-100">© 2026 K-Voice — plateforme pour églises</p>
       </div>
     </div>
   );

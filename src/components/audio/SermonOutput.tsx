@@ -64,51 +64,55 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<SermonOutputData | null>(null)
   const [status, setStatus] = useState<SermonStatus | null>(null)
-  
+
   useEffect(() => {
-    fetchStatus()
-    const interval = setInterval(() => {
-      if (status && status.currentStatus !== 'completed') {
-        fetchStatus()
-      }
-    }, 2000)
-    
-    return () => clearInterval(interval)
-  }, [sermonId])
-  
-  const fetchStatus = async () => {
-    try {
-      const response = await fetch(`/api/sermons/${sermonId}/status`)
-      const result = await response.json()
-      
-      if (result.success) {
-        setStatus(result.status)
-        
-        if (result.status.currentStatus === 'completed') {
-          fetchOutput()
+    let cancelled = false
+
+    const tick = async () => {
+      if (cancelled) return
+      try {
+        const response = await fetch(`/api/sermons/${sermonId}/status`)
+        const result = await response.json()
+
+        if (!result.success || cancelled) return
+
+        const st = result.status as SermonStatus
+        setStatus(st)
+
+        if (st.currentStatus === 'failed') {
+          setLoading(false)
+          setError('Le traitement a échoué.')
+          return
         }
+
+        const hasTr = st.hasTranscript
+        if (hasTr || st.currentStatus === 'completed') {
+          const outRes = await fetch(`/api/sermons/${sermonId}/output`)
+          const out = await outRes.json()
+          if (cancelled) return
+          if (out.success) {
+            setData(out)
+            setError(null)
+            setLoading(false)
+          } else if (outRes.status === 404) {
+            // Course: transcript pas encore exposé sur GET output — on laisse tourner
+          } else {
+            setError(out.error || 'Impossible de charger le résultat')
+            setLoading(false)
+          }
+        }
+      } catch (err) {
+        console.error('SermonOutput poll error:', err)
       }
-    } catch (err) {
-      console.error('Error fetching status:', err)
     }
-  }
-  
-  const fetchOutput = async () => {
-    try {
-      const response = await fetch(`/api/sermons/${sermonId}/output`)
-      const result = await response.json()
-      
-      if (result.success) {
-        setData(result)
-      } else {
-        setError(result.error || 'Failed to load sermon output')
-      }
-    } catch (err) {
-      setError('Failed to load sermon output')
-    } finally {
-      setLoading(false)
+
+    tick()
+    const interval = setInterval(tick, 2000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
     }
-  }
+  }, [sermonId])
   
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -142,9 +146,15 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
                 })}
               </CardDescription>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+            <Badge
+              className={
+                data.sermon.status === 'completed'
+                  ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                  : 'bg-amber-100 text-amber-800 border-amber-200'
+              }
+            >
               <CheckCircle2 className="h-3 w-3 mr-1" />
-              Completed
+              {data.sermon.status === 'completed' ? 'Completed' : 'Processing'}
             </Badge>
           </div>
         </CardHeader>
@@ -200,7 +210,9 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
                 </div>
                 <div className="prose prose-slate dark:prose-invert max-w-none">
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                    {data.output.summary}
+                    {data.output.summary?.trim()
+                      ? data.output.summary
+                      : '(Résumé non encore généré — étape NLP en cours ou à relancer.)'}
                   </p>
                 </div>
               </div>

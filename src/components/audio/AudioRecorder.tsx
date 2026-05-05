@@ -39,7 +39,12 @@ interface UploadState {
 // AudioRecorder
 // ---------------------------------------------------------------------------
 
-export function AudioRecorder() {
+interface AudioRecorderProps {
+  /** Préremplit le dialogue d’upload (page Enregistrer) */
+  uploadFormDefaults?: Partial<{ title: string; speaker: string; date: string }>
+}
+
+export function AudioRecorder({ uploadFormDefaults }: AudioRecorderProps = {}) {
   const {
     isRecording,
     recordingDuration,
@@ -72,7 +77,12 @@ export function AudioRecorder() {
   // Open dialog to collect sermon metadata before uploading
   const openUploadDialog = (recordingId: string) => {
     setPendingRecordingId(recordingId)
-    setForm({ title: '', speaker: '', date: new Date().toISOString().split('T')[0] })
+    const d = new Date().toISOString().split('T')[0]
+    setForm({
+      title: uploadFormDefaults?.title ?? '',
+      speaker: uploadFormDefaults?.speaker ?? '',
+      date: uploadFormDefaults?.date ?? d,
+    })
     setFormError('')
     setDialogOpen(true)
   }
