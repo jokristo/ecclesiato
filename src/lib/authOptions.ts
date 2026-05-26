@@ -23,13 +23,15 @@ export const authOptions: NextAuthOptions = {
 
           if (!data.access_token) return null;
 
+          const u = data.user;
           return {
-            id: data.user?.id ?? credentials.email,
-            name: data.user?.name ?? credentials.email,
-            email: data.user?.email ?? credentials.email,
+            id: u?.id ?? credentials.email,
+            name: u?.name ?? credentials.email,
+            email: u?.email ?? credentials.email,
             accessToken: data.access_token,
             refreshToken: data.refresh_token,
-            role: data.user?.role ?? 'member',
+            role: u?.role ?? 'member',
+            organizationId: u?.organization_id ?? null,
           };
         } catch {
           return null;
@@ -40,21 +42,25 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user }) {
-      // Premier login : on copie les données du user retourné par authorize()
       if (user) {
         token.accessToken = (user as any).accessToken;
         token.refreshToken = (user as any).refreshToken;
         token.role = (user as any).role;
+        token.userId = (user as any).id;
+        token.organizationId = (user as any).organizationId;
       }
       return token;
     },
 
     async session({ session, token }) {
-      // On expose les tokens et le rôle dans la session côté client
       (session as any).accessToken = token.accessToken;
       (session as any).role = token.role;
+      (session as any).userId = token.userId;
+      (session as any).organizationId = token.organizationId;
       if (session.user) {
         (session.user as any).role = token.role;
+        (session.user as any).id = token.userId;
+        (session.user as any).organizationId = token.organizationId;
       }
       return session;
     },
@@ -67,7 +73,7 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: 'jwt',
-    maxAge: 7 * 24 * 60 * 60, // 7 jours (durée du refresh token k-voice)
+    maxAge: 7 * 24 * 60 * 60,
   },
 
   secret: process.env.NEXTAUTH_SECRET,

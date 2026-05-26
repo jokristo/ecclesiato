@@ -134,10 +134,12 @@ export function AudioRecorder({ uploadFormDefaults }: AudioRecorderProps = {}) {
       }
 
       const { sermon } = await res.json()
-      setUpload(recordingId, { status: 'processing', progress: 100, sermonId: sermon.id, error: null })
-
-      // Trigger transcription + NLP
-      await fetch(`/api/sermons/${sermon.id}/process`, { method: 'POST' })
+      setUpload(recordingId, {
+        status: 'processing',
+        progress: 100,
+        sermonId: sermon.id,
+        error: null,
+      })
 
       setUpload(recordingId, { status: 'done', progress: 100, sermonId: sermon.id, error: null })
     } catch (err: any) {

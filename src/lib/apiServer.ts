@@ -49,6 +49,27 @@ export async function serverFetch<T = unknown>(
   return { data: data as T, status: res.status };
 }
 
+/** For endpoints that return 204 No Content (e.g. DELETE). */
+export async function serverFetchNoContent(
+  path: string,
+  method: 'DELETE' | 'POST' | 'PATCH' = 'DELETE',
+): Promise<{ ok: boolean; status: number; error?: string }> {
+  const token = await getToken();
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (res.ok) {
+    return { ok: true, status: res.status };
+  }
+  const data = await res.json().catch(() => ({}));
+  return {
+    ok: false,
+    status: res.status,
+    error: (data as { detail?: string }).detail ?? `Erreur ${res.status}`,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Snake_case → camelCase helpers for backend sermon responses
 // ---------------------------------------------------------------------------
@@ -75,6 +96,23 @@ export function mapSermon(s: Record<string, any>) {
   };
 }
 
+function mapNlpMetadata(meta: Record<string, unknown> | null | undefined) {
+  if (!meta || typeof meta !== 'object') return null;
+  return {
+    centralMessage:
+      (meta.central_message as string | undefined) ??
+      (meta.centralMessage as string | undefined) ??
+      undefined,
+    correctedTranscript:
+      (meta.corrected_transcript as string | undefined) ??
+      (meta.correctedTranscript as string | undefined) ??
+      undefined,
+    corrections: (meta.corrections as unknown[]) ?? [],
+    confidence: meta.confidence as 'high' | 'medium' | 'low' | undefined,
+    pipeline: meta.pipeline as string | undefined,
+  };
+}
+
 export function mapOutput(o: Record<string, any>) {
   return {
     id: o.id,
@@ -91,6 +129,7 @@ export function mapOutput(o: Record<string, any>) {
     estimatedReadTime: o.estimated_read_time ?? 0,
     processingTime: o.processing_time ?? null,
     aiModel: o.ai_model ?? null,
+    nlpMetadata: mapNlpMetadata(o.nlp_metadata),
     createdAt: o.created_at,
     updatedAt: o.updated_at,
   };

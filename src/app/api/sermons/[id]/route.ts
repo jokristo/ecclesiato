@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { serverFetch, mapSermon } from '@/lib/apiServer';
+import { serverFetch, serverFetchNoContent, mapSermon } from '@/lib/apiServer';
 
 export async function GET(
   _request: NextRequest,
@@ -18,14 +18,16 @@ export async function GET(
   return NextResponse.json({ success: true, sermon: mapSermon(data) });
 }
 
-// The k-voice backend does not expose a DELETE /sermons endpoint.
-// This stub returns 501 so existing callers get a clear error instead of 404.
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  return NextResponse.json(
-    { error: 'Delete is not supported by the k-voice backend' },
-    { status: 501 },
-  );
+  const { id } = await params;
+  const result = await serverFetchNoContent(`/sermons/${id}`);
+
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+
+  return new NextResponse(null, { status: 204 });
 }

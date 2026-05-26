@@ -10,6 +10,7 @@ import {
   BarChart3,
   Settings,
   CreditCard,
+  ShieldCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
@@ -54,7 +55,14 @@ function NavLink({
 
 export function KVoiceShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { logout } = useAuth()
+  const { logout, isSuperAdmin } = useAuth()
+
+  const navItems = [
+    ...nav,
+    ...(isSuperAdmin
+      ? [{ href: '/admin' as const, label: 'Admin', icon: ShieldCheck }]
+      : []),
+  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -73,14 +81,16 @@ export function KVoiceShell({ children }: { children: React.ReactNode }) {
 
             <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-2">
               <div className="flex max-w-full items-center gap-1 overflow-x-auto pb-0 sm:max-w-[70vw]">
-                {nav.map((item) => (
+                {navItems.map((item) => (
                   <NavLink
                     key={item.href}
                     {...item}
                     active={
                       item.href === '/'
                         ? pathname === '/'
-                        : pathname === item.href || pathname.startsWith(item.href + '/')
+                        : pathname === '/admin'
+                          ? pathname === '/admin' || pathname.startsWith('/admin/')
+                          : pathname === item.href || pathname.startsWith(item.href + '/')
                     }
                   />
                 ))}
