@@ -293,7 +293,7 @@ AUDIO_RETENTION_ENABLED=true
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=...
+NEXTAUTH_SECRET="..."
 ```
 
 ---
