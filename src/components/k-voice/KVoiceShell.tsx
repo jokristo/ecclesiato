@@ -17,7 +17,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 
 const nav = [
-  { href: '/', label: 'Dashboard', icon: Home },
+  { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/record', label: 'Enregistrer', icon: List },
   { href: '/analytics', label: 'Statistiques', icon: BarChart3 },
   { href: '/pricing', label: 'Abonnement', icon: CreditCard },
@@ -86,8 +86,8 @@ export function KVoiceShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     {...item}
                     active={
-                      item.href === '/'
-                        ? pathname === '/'
+                      item.href === '/dashboard'
+                        ? pathname === '/dashboard'
                         : pathname === '/admin'
                           ? pathname === '/admin' || pathname.startsWith('/admin/')
                           : pathname === item.href || pathname.startsWith(item.href + '/')

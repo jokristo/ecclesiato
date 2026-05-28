@@ -93,7 +93,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
         <div className="space-y-2 p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           <Link
-            href="/"
+            href="/dashboard"
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:text-slate-300"
             style={{ color: '#6b7280' }}
           >

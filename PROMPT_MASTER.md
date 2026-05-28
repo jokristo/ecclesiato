@@ -155,6 +155,20 @@ Fichier clé : `app/services/media_service.py`
 
 Pas de **diarisation** (orateur vs interprète) : une seule piste mixée.
 
+### Transcription longue (Whisper)
+
+- Découpage avec **chevauchement** (`whisper_chunk_overlap_seconds`, défaut 35 s).
+- Chaque morceau ≥ 2 : **prompt de continuation** (fin du segment précédent).
+- Fusion texte : **dédoublonnage overlap** + lissage des jonctions (`transcript_merge.py`).
+
+### Résumé complet (map-reduce)
+
+- Si transcript ≥ `openai_nlp_map_reduce_min_chars` (défaut 8 000) :
+  1. Découpe en **sections** (~12 000 car. / section, par paragraphes).
+  2. Mini-synthèse JSON par section.
+  3. Fusion meta + **résumé pastoral final** sur toutes les sections.
+- Plus d’extrait « début + fin seulement » pour les longues prédications.
+
 ### Rétention audio (stockage disque)
 
 - Fichiers audio conservés **2 jours** par défaut (`AUDIO_RETENTION_DAYS=2`), puis **supprimés du disque**.
@@ -263,6 +277,9 @@ OPENAI_TRANSCRIPTION_MAX_RETRIES=5
 NLP_PROVIDER=openai
 OPENAI_SUMMARY_MODEL=gpt-4o-mini
 OPENAI_NLP_SKIP_FULL_NORMALIZE_CHARS=25000
+WHISPER_CHUNK_OVERLAP_SECONDS=35
+OPENAI_NLP_MAP_REDUCE_MIN_CHARS=8000
+OPENAI_NLP_MAP_SECTION_CHARS=12000
 OPENAI_NLP_MAX_TRANSCRIPT_CHARS=100000
 
 MAX_UPLOAD_SIZE_MB=100

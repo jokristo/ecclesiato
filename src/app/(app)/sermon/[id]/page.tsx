@@ -275,7 +275,7 @@ export default function SermonDetailPage() {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error ?? 'Suppression impossible')
       }
-      router.push('/')
+      router.push('/dashboard')
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Erreur')
       setActionBusy(null)
@@ -297,7 +297,7 @@ export default function SermonDetailPage() {
         <h2 className="text-2xl font-bold text-slate-900">Prédication non trouvée</h2>
         <p className="mt-2 text-slate-600">{error}</p>
         <Button asChild className="mt-4 bg-indigo-600 hover:bg-indigo-600/90">
-          <Link href="/">Retour au dashboard</Link>
+          <Link href="/dashboard">Retour au dashboard</Link>
         </Button>
       </div>
     )
@@ -359,7 +359,7 @@ export default function SermonDetailPage() {
       <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-start">
         <div className="min-w-0 flex-1 space-y-4">
           <Button variant="ghost" className="-ml-2 h-9 px-2 text-slate-600" asChild>
-            <Link href="/">
+            <Link href="/dashboard">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Retour au dashboard
             </Link>
