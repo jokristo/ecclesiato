@@ -16,8 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Upload, FileAudio, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Upload, FileAudio, Loader2, CheckCircle2, AlertCircle, Info } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { useUploadLimits } from '@/hooks/use-upload-limits'
+import { formatFileSize, validateAudioFileSize } from '@/lib/uploadLimits'
 
 type OrgOption = { id: string; name: string }
 
@@ -28,7 +30,11 @@ interface SermonImportProps {
 export function SermonImport({ uploadFormDefaults }: SermonImportProps) {
   const router = useRouter()
   const { isSuperAdmin } = useAuth()
+  const { limits } = useUploadLimits()
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const compressTarget = limits.audioCompressionTargetMb ?? 24
+  const willAutoCompress = limits.audioCompressionEnabled
 
   const [file, setFile] = useState<File | null>(null)
   const [title, setTitle] = useState(uploadFormDefaults?.title ?? '')
@@ -44,6 +50,7 @@ export function SermonImport({ uploadFormDefaults }: SermonImportProps) {
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState('')
   const [sermonId, setSermonId] = useState<string | null>(null)
+  const [willCompress, setWillCompress] = useState(false)
 
   const loadOrgs = async () => {
     if (!isSuperAdmin || orgsLoaded) return
@@ -63,12 +70,28 @@ export function SermonImport({ uploadFormDefaults }: SermonImportProps) {
     const f = e.target.files?.[0]
     setFile(f ?? null)
     setError('')
+    if (f) {
+      const check = validateAudioFileSize(f, limits)
+      if (!check.ok) {
+        setError(check.message)
+        setWillCompress(false)
+      } else {
+        setWillCompress(Boolean(check.willCompress))
+      }
+    } else {
+      setWillCompress(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!file) {
       setError('Choisissez un fichier audio.')
+      return
+    }
+    const sizeCheck = validateAudioFileSize(file, limits)
+    if (!sizeCheck.ok) {
+      setError(sizeCheck.message)
       return
     }
     if (!title.trim() || !speaker.trim() || !date) {
@@ -122,9 +145,24 @@ export function SermonImport({ uploadFormDefaults }: SermonImportProps) {
           <Upload className="h-5 w-5 text-indigo-600" />
           Importer une prédication existante
         </CardTitle>
-        <CardDescription>
-          Fichier audio (MP3, M4A, WAV, WebM…). La transcription et le résumé démarrent
-          automatiquement.
+        <CardDescription className="space-y-1">
+          <span className="block">
+            Fichier audio (MP3, M4A, WAV, WebM…). Transcription et résumé automatiques.
+          </span>
+          <span className="flex items-start gap-1.5 text-xs text-slate-500">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Upload jusqu&apos;à {limits.maxUploadSizeMb} Mo.
+            {willAutoCompress &&
+              ` Les gros fichiers sont convertis en MP3 optimisé ; si nécessaire, découpage automatique à la transcription (Whisper ≤ ${compressTarget} Mo par partie).`}
+            {limits.audioRetentionEnabled !== false && limits.audioRetentionDays != null && (
+              <>
+                {' '}
+                L&apos;audio est conservé {limits.audioRetentionDays} jour
+                {limits.audioRetentionDays > 1 ? 's' : ''} sur le serveur (la transcription reste
+                en base).
+              </>
+            )}
+          </span>
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -148,9 +186,19 @@ export function SermonImport({ uploadFormDefaults }: SermonImportProps) {
               />
               <FileAudio className="mb-2 h-10 w-10 text-indigo-500" />
               {file ? (
-                <p className="text-sm font-medium text-slate-900">{file.name}</p>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-slate-900">{file.name}</p>
+                  <p className="mt-1 text-xs text-slate-500">{formatFileSize(file.size)}</p>
+                </div>
               ) : (
-                <p className="text-sm text-slate-600">Cliquez pour choisir un fichier</p>
+                <p className="text-sm text-slate-600">
+                  Cliquez pour choisir un fichier (max {limits.maxUploadSizeMb} Mo)
+                </p>
+              )}
+              {file && willCompress && (
+                <p className="mt-2 text-xs font-medium text-indigo-600">
+                  Sera compressé automatiquement avant transcription
+                </p>
               )}
             </div>
           </div>

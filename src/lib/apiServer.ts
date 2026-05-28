@@ -110,6 +110,12 @@ function mapNlpMetadata(meta: Record<string, unknown> | null | undefined) {
     corrections: (meta.corrections as unknown[]) ?? [],
     confidence: meta.confidence as 'high' | 'medium' | 'low' | undefined,
     pipeline: meta.pipeline as string | undefined,
+    lastError:
+      (meta.last_error as string | undefined) ?? (meta.lastError as string | undefined) ?? undefined,
+    normalizeSkipped:
+      (meta.normalize_skipped as boolean | undefined) ??
+      (meta.normalizeSkipped as boolean | undefined) ??
+      undefined,
   };
 }
 

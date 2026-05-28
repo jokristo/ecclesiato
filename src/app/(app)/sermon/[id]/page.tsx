@@ -29,6 +29,7 @@ import {
   Copy,
   LayoutGrid,
   ScrollText,
+  RotateCcw,
 } from 'lucide-react'
 import {
   AlertDialog,
@@ -58,6 +59,8 @@ type NlpMetadata = {
   corrections?: NlpCorrection[]
   confidence?: 'high' | 'medium' | 'low'
   pipeline?: string
+  lastError?: string
+  normalizeSkipped?: boolean
 }
 
 type SermonOutput = {
@@ -79,6 +82,7 @@ type SermonDetail = {
   speaker: string
   date: string
   status: string
+  audioUrl?: string | null
   audioDuration?: number | null
   output?: SermonOutput | null
 }
@@ -160,7 +164,9 @@ export default function SermonDetailPage() {
   const id = params.id as string
   const [sermon, setSermon] = useState<SermonDetail | null>(undefined)
   const [error, setError] = useState<string | null>(null)
-  const [actionBusy, setActionBusy] = useState<'cancel' | 'delete' | null>(null)
+  const [actionBusy, setActionBusy] = useState<
+    'cancel' | 'delete' | 'retry-summary' | 'retry-transcribe' | null
+  >(null)
   const [transcriptView, setTranscriptView] = useState<'corrected' | 'raw'>('corrected')
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -220,6 +226,38 @@ export default function SermonDetailPage() {
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error ?? 'Annulation impossible')
+      }
+      await load()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Erreur')
+    } finally {
+      setActionBusy(null)
+    }
+  }
+
+  const handleRetryTranscribe = async () => {
+    setActionBusy('retry-transcribe')
+    try {
+      const res = await fetch(`/api/sermons/${id}/retry-transcribe`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error ?? 'Relance impossible')
+      }
+      await load()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Erreur')
+    } finally {
+      setActionBusy(null)
+    }
+  }
+
+  const handleRetrySummary = async () => {
+    setActionBusy('retry-summary')
+    try {
+      const res = await fetch(`/api/sermons/${id}/retry-summary`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error ?? 'Relance impossible')
       }
       await load()
     } catch (e) {
@@ -303,8 +341,17 @@ export default function SermonDetailPage() {
       ? Math.max(1, Math.round(output.estimatedReadTime / 60))
       : null
 
+  const hasTranscript = Boolean(rawTranscript?.trim())
+  const hasAudio = Boolean(sermon.audioUrl?.trim())
+  const canRetryTranscribe = status === 'failed' && !hasTranscript && hasAudio
+  const canRetrySummary = status === 'failed' && hasTranscript
   const hasContent =
-    status === 'completed' || status === 'processing' || status === 'transcribing'
+    status === 'completed' ||
+    status === 'processing' ||
+    status === 'transcribing' ||
+    (status === 'failed' && hasTranscript)
+  const defaultTab =
+    status === 'completed' ? 'overview' : status === 'failed' && hasTranscript ? 'transcription' : 'summary'
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 pb-12">
@@ -337,6 +384,36 @@ export default function SermonDetailPage() {
         </div>
 
         <div className="flex flex-wrap gap-2 lg:shrink-0">
+          {canRetryTranscribe && (
+            <Button
+              size="sm"
+              className="gap-2 bg-indigo-600 hover:bg-indigo-600/90"
+              disabled={actionBusy !== null}
+              onClick={() => void handleRetryTranscribe()}
+            >
+              {actionBusy === 'retry-transcribe' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="h-4 w-4" />
+              )}
+              Relancer la transcription
+            </Button>
+          )}
+          {canRetrySummary && (
+            <Button
+              size="sm"
+              className="gap-2 bg-indigo-600 hover:bg-indigo-600/90"
+              disabled={actionBusy !== null}
+              onClick={() => void handleRetrySummary()}
+            >
+              {actionBusy === 'retry-summary' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Relancer le résumé
+            </Button>
+          )}
           {(status === 'transcribing' || status === 'processing') && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -456,9 +533,25 @@ export default function SermonDetailPage() {
       {status === 'failed' && (
         <Alert variant="destructive">
           <AlertTitle>Échec du traitement</AlertTitle>
-          <AlertDescription>
-            Une erreur s&apos;est produite durant la transcription ou le résumé. Réessayez depuis
-            l&apos;enregistrement ou contactez le support.
+          <AlertDescription className="space-y-2">
+            {hasTranscript ? (
+              <>
+                <p>
+                  La transcription est disponible, mais le résumé automatique a échoué.
+                  {meta?.lastError?.includes('JSON invalide')
+                    ? ' Réessayez avec « Relancer le résumé » (réponse IA tronquée ou mal formée).'
+                    : meta?.lastError
+                      ? ` ${meta.lastError}`
+                      : ''}
+                </p>
+                <p className="text-sm">
+                  Vous pouvez consulter le texte ci-dessous et relancer uniquement le résumé (sans
+                  re-téléverser l&apos;audio).
+                </p>
+              </>
+            ) : (
+              <p>Échec transcription : vérifier votre réseau</p>
+            )}
           </AlertDescription>
         </Alert>
       )}
@@ -523,7 +616,7 @@ export default function SermonDetailPage() {
       {hasContent && (
         <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
           {/* Main content tabs */}
-          <Tabs defaultValue={status === 'completed' ? 'overview' : 'summary'} className="w-full">
+          <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="mb-2 grid h-auto w-full grid-cols-2 gap-1 bg-slate-100 p-1 sm:grid-cols-5">
               {status === 'completed' && (
                 <TabsTrigger value="overview" className="gap-1.5 py-2.5 data-[state=active]:shadow-sm">
@@ -806,6 +899,16 @@ export default function SermonDetailPage() {
                 </div>
               )}
 
+              {meta?.normalizeSkipped && (
+                <Alert className="border-amber-200 bg-amber-50/80">
+                  <AlertDescription className="text-sm text-amber-900">
+                    Prédication longue : la correction complète a été sautée pour éviter un timeout.
+                    Le résumé a été généré à partir de la transcription brute (éventuellement tronquée
+                    au-delà de 100&nbsp;000 caractères pour l&apos;analyse).
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <Card className="border-slate-200/80 shadow-sm">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-lg">
@@ -813,6 +916,11 @@ export default function SermonDetailPage() {
                     {transcriptView === 'corrected' && hasCorrected
                       ? 'Transcription corrigée'
                       : 'Transcription complète'}
+                    {rawTranscript && (
+                      <span className="ml-auto text-xs font-normal text-slate-500">
+                        {rawTranscript.length.toLocaleString('fr-FR')} car.
+                      </span>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -857,7 +965,7 @@ export default function SermonDetailPage() {
           </Tabs>
 
           {/* Sidebar — themes & meta */}
-          {(status === 'completed' || status === 'processing') && (
+          {(status === 'completed' || status === 'processing' || (status === 'failed' && hasTranscript)) && (
             <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
               {status === 'processing' && (
                 <Card className="border-violet-200/80 bg-violet-50/30 shadow-sm">

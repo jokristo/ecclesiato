@@ -21,6 +21,8 @@ import { cn } from '@/lib/utils'
 import { formatDuration } from '@/lib/utils'
 import { useState } from 'react'
 import { SermonOutput } from '@/components/audio/SermonOutput'
+import { useUploadLimits } from '@/hooks/use-upload-limits'
+import { validateAudioFileSize } from '@/lib/uploadLimits'
 
 // ---------------------------------------------------------------------------
 // Per-recording upload state
@@ -45,6 +47,7 @@ interface AudioRecorderProps {
 }
 
 export function AudioRecorder({ uploadFormDefaults }: AudioRecorderProps = {}) {
+  const { limits } = useUploadLimits()
   const {
     isRecording,
     recordingDuration,
@@ -106,6 +109,13 @@ export function AudioRecorder({ uploadFormDefaults }: AudioRecorderProps = {}) {
     blob: Blob,
     metadata: { title: string; speaker: string; date: string },
   ) => {
+    const fileForCheck = new File([blob], `recording-${recordingId}.webm`, { type: blob.type || 'audio/webm' })
+    const sizeCheck = validateAudioFileSize(fileForCheck, limits)
+    if (!sizeCheck.ok) {
+      setUpload(recordingId, { status: 'error', progress: 0, sermonId: null, error: sizeCheck.message })
+      return
+    }
+
     setUpload(recordingId, { status: 'uploading', progress: 0, error: null })
 
     try {
@@ -268,7 +278,11 @@ export function AudioRecorder({ uploadFormDefaults }: AudioRecorderProps = {}) {
           <DialogHeader>
             <DialogTitle>Informations du sermon</DialogTitle>
             <DialogDescription>
-              Ces informations seront associées à l'enregistrement avant l'envoi au backend.
+              Ces informations seront associées à l&apos;enregistrement avant l&apos;envoi.
+              Enregistrement WebM : max {limits.maxUploadSizeMb} Mo
+              {limits.transcriptionProvider === 'openai' &&
+                ` (Whisper : ${limits.whisperMaxFileMb} Mo)`}
+              .
             </DialogDescription>
           </DialogHeader>
 

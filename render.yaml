@@ -1,0 +1,20 @@
+# Render Blueprint — Ecclesiato / K-Voice frontend (déployer depuis ecclesiato/)
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: ecclesiato
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm ci && npm run build:render
+    startCommand: npm run start:render
+    envVars:
+      - key: NODE_VERSION
+        value: "20.18.0"
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: NEXTAUTH_SECRET
+        generateValue: true

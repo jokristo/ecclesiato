@@ -62,12 +62,16 @@ function RecordTabContent({
               Moteur & traitement
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-sm text-slate-600">
-            <p>
-              L’enregistrement utilise l’API Web Audio, puis l’upload vers K-Voice pour
-              transcription et résumé automatiques.
-            </p>
-          </CardContent>
+            <CardContent className="space-y-4 text-sm text-slate-600">
+              <p>
+                L’enregistrement utilise l’API Web Audio, puis l’upload vers K-Voice pour
+                transcription et résumé automatiques.
+              </p>
+              <p className="text-xs text-slate-500">
+                Import jusqu’à 100 Mo : compression automatique en MP3 (64–128 kbps) sous 24 Mo
+                pour Whisper si le fichier est plus lourd.
+              </p>
+            </CardContent>
         </Card>
 
         <Card className="border-slate-200 bg-gradient-to-br from-indigo-50 to-purple-50 shadow-sm">
