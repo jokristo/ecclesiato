@@ -46,6 +46,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { normalizeSermonStatus } from '@/lib/sermonDisplay'
 import { cn } from '@/lib/utils'
+import { buildSermonExportContent, downloadSermonPdf } from '@/lib/sermonExport'
 
 type NlpCorrection = {
   original: string
@@ -130,34 +131,6 @@ function TranscriptBlock({ text }: { text: string }) {
   )
 }
 
-function buildExportMarkdown(sermon: SermonDetail, output: SermonOutput | null | undefined) {
-  const meta = output?.nlpMetadata
-  const lines = [
-    `# ${sermon.title}`,
-    '',
-    `**Prédicateur :** ${sermon.speaker}`,
-    `**Date :** ${new Date(sermon.date).toLocaleDateString('fr-FR')}`,
-    '',
-  ]
-  if (meta?.centralMessage) {
-    lines.push('## Message central', '', meta.centralMessage, '')
-  }
-  if (output?.summary) {
-    lines.push('## Résumé pastoral', '', output.summary, '')
-  }
-  if (output?.keyPoints?.length) {
-    lines.push('## Points clés', '', ...output.keyPoints.map((p, i) => `${i + 1}. ${p}`), '')
-  }
-  if (output?.keyVerses?.length) {
-    lines.push('## Versets cités', '', ...output.keyVerses.map((v) => `- ${v.reference}`), '')
-  }
-  const transcript = meta?.correctedTranscript || output?.transcript
-  if (transcript) {
-    lines.push('## Transcription', '', transcript)
-  }
-  return lines.join('\n')
-}
-
 export default function SermonDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -169,6 +142,7 @@ export default function SermonDetailPage() {
   >(null)
   const [transcriptView, setTranscriptView] = useState<'corrected' | 'raw'>('corrected')
   const [copied, setCopied] = useState<string | null>(null)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   const copyText = async (label: string, text: string) => {
     try {
@@ -180,16 +154,22 @@ export default function SermonDetailPage() {
     }
   }
 
-  const handleExport = () => {
-    if (!sermon) return
-    const md = buildExportMarkdown(sermon, sermon.output)
-    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${sermon.title.replace(/[^\w\s-]/g, '').trim() || 'predication'}.md`
-    a.click()
-    URL.revokeObjectURL(url)
+  const handleExportPdf = async () => {
+    if (!sermon || exportingPdf) return
+    setExportingPdf(true)
+    try {
+      const content = buildSermonExportContent({
+        title: sermon.title,
+        speaker: sermon.speaker,
+        date: sermon.date,
+        output: sermon.output,
+      })
+      await downloadSermonPdf(content, sermon.title)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Export PDF impossible')
+    } finally {
+      setExportingPdf(false)
+    }
   }
 
   const load = useCallback(async () => {
@@ -449,9 +429,20 @@ export default function SermonDetailPage() {
             <Share2 className="h-4 w-4" />
             Partager
           </Button>
-          <Button variant="outline" size="sm" className="gap-2" type="button" onClick={handleExport}>
-            <Download className="h-4 w-4" />
-            Exporter
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            type="button"
+            disabled={exportingPdf}
+            onClick={() => void handleExportPdf()}
+          >
+            {exportingPdf ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Exporter PDF
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>

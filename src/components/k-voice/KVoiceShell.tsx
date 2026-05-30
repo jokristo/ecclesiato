@@ -73,10 +73,7 @@ export function KVoiceShell({ children }: { children: React.ReactNode }) {
               <div className="shrink-0 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 p-2">
                 <Mic className="h-6 w-6 text-white" />
               </div>
-              <div className="min-w-0">
-                <h1 className="truncate text-xl font-bold text-slate-900">K-Voice</h1>
-                <p className="truncate text-xs text-slate-500">Église Évangélique de kisangani</p>
-              </div>
+              <span className="truncate text-xl font-bold text-slate-900">K-Voice</span>
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-2">

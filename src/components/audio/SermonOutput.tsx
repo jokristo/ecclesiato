@@ -21,6 +21,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { buildSermonExportContent, downloadSermonPdf } from '@/lib/sermonExport'
 
 interface SermonOutputProps {
   sermonId: string
@@ -50,6 +51,10 @@ interface SermonOutputData {
     references: string[]
     wordCount: number
     estimatedReadTime: number
+    nlpMetadata?: {
+      centralMessage?: string | null
+      correctedTranscript?: string | null
+    } | null
   }
 }
 
@@ -67,6 +72,7 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
   const [status, setStatus] = useState<SermonStatus | null>(null)
   const [hasTranscript, setHasTranscript] = useState(false)
   const [retrying, setRetrying] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -152,6 +158,25 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text)
   }
+
+  const runExportPdf = async (transcriptOnly: boolean) => {
+    if (!data || exportingPdf) return
+    setExportingPdf(true)
+    try {
+      const content = buildSermonExportContent({
+        title: data.sermon.title,
+        speaker: data.sermon.speaker,
+        date: data.sermon.date,
+        output: data.output,
+        transcriptOnly,
+      })
+      await downloadSermonPdf(content, data.sermon.title)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Export PDF impossible')
+    } finally {
+      setExportingPdf(false)
+    }
+  }
   
   if (loading) {
     return <ProcessingStatus status={status || { currentStatus: 'pending', progress: 0, hasTranscript: false, hasSummary: false }} />
@@ -189,16 +214,32 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
                 })}
               </CardDescription>
             </div>
-            <Badge
-              className={
-                data.sermon.status === 'completed'
-                  ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                  : 'bg-amber-100 text-amber-800 border-amber-200'
-              }
-            >
-              <CheckCircle2 className="h-3 w-3 mr-1" />
-              {data.sermon.status === 'completed' ? 'Completed' : 'Processing'}
-            </Badge>
+            <div className="flex flex-col items-end gap-2">
+              <Badge
+                className={
+                  data.sermon.status === 'completed'
+                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                    : 'bg-amber-100 text-amber-800 border-amber-200'
+                }
+              >
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                {data.sermon.status === 'completed' ? 'Completed' : 'Processing'}
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                disabled={exportingPdf}
+                onClick={() => void runExportPdf(false)}
+              >
+                {exportingPdf ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                Télécharger PDF
+              </Button>
+            </div>
           </div>
         </CardHeader>
       </Card>
@@ -242,14 +283,29 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Sermon Summary</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleCopy(data.output.summary)}
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={exportingPdf}
+                      onClick={() => void runExportPdf(false)}
+                    >
+                      {exportingPdf ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 mr-2" />
+                      )}
+                      PDF
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCopy(data.output.summary)}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy
+                    </Button>
+                  </div>
                 </div>
                 <div className="prose prose-slate dark:prose-invert max-w-none">
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -269,9 +325,15 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
                     <Button
                       variant="outline"
                       size="sm"
+                      disabled={exportingPdf || !data.output.transcript?.trim()}
+                      onClick={() => void runExportPdf(true)}
                     >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
+                      {exportingPdf ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 mr-2" />
+                      )}
+                      PDF
                     </Button>
                     <Button
                       variant="ghost"
@@ -297,14 +359,29 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Key Points</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleCopy(data.output.keyPoints.join('\n'))}
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={exportingPdf}
+                      onClick={() => void runExportPdf(false)}
+                    >
+                      {exportingPdf ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 mr-2" />
+                      )}
+                      PDF
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCopy(data.output.keyPoints.join('\n'))}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-3">
                   {data.output.keyPoints.map((point, index) => (
@@ -343,16 +420,31 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Key Biblical Verses</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleCopy(
-                      data.output.keyVerses.map(v => v.reference).join('\n')
-                    )}
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={exportingPdf}
+                      onClick={() => void runExportPdf(false)}
+                    >
+                      {exportingPdf ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 mr-2" />
+                      )}
+                      PDF
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCopy(
+                        data.output.keyVerses.map(v => v.reference).join('\n')
+                      )}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy
+                    </Button>
+                  </div>
                 </div>
                 <ScrollArea className="h-[500px] rounded-md border border-slate-200 dark:border-slate-700 p-4">
                   <div className="space-y-4">
