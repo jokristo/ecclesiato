@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -64,6 +65,8 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<SermonOutputData | null>(null)
   const [status, setStatus] = useState<SermonStatus | null>(null)
+  const [hasTranscript, setHasTranscript] = useState(false)
+  const [retrying, setRetrying] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -79,9 +82,21 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
         const st = result.status as SermonStatus
         setStatus(st)
 
+        setHasTranscript(!!st.hasTranscript)
+
         if (st.currentStatus === 'failed') {
+          let msg = 'Le traitement a échoué.'
+          try {
+            const detailRes = await fetch(`/api/sermons/${sermonId}`)
+            const detail = await detailRes.json()
+            if (detail.sermon?.lastError) {
+              msg = detail.sermon.lastError
+            }
+          } catch {
+            /* garde le message par défaut */
+          }
           setLoading(false)
-          setError('Le traitement a échoué.')
+          setError(msg)
           return
         }
 
@@ -113,7 +128,27 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
       clearInterval(interval)
     }
   }, [sermonId])
-  
+
+  const handleRetrySummary = useCallback(async () => {
+    setRetrying(true)
+    setError(null)
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/sermons/${sermonId}/retry-summary`, { method: 'POST' })
+      const body = await res.json()
+      if (!res.ok) {
+        setError(body.error ?? 'Impossible de relancer le résumé.')
+        setLoading(false)
+        return
+      }
+    } catch {
+      setError('Erreur réseau lors de la relance.')
+      setLoading(false)
+    } finally {
+      setRetrying(false)
+    }
+  }, [sermonId])
+
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text)
   }
@@ -123,7 +158,15 @@ export function SermonOutput({ sermonId }: SermonOutputProps) {
   }
   
   if (error) {
-    return <ErrorState error={error} />
+    return (
+      <ErrorState
+        error={error}
+        sermonId={sermonId}
+        canRetrySummary={hasTranscript}
+        retrying={retrying}
+        onRetrySummary={() => void handleRetrySummary()}
+      />
+    )
   }
   
   if (!data) {
@@ -454,17 +497,45 @@ function ProcessingStatus({ status }: ProcessingStatusProps) {
   )
 }
 
-function ErrorState({ error }: { error: string }) {
+function ErrorState({
+  error,
+  sermonId,
+  canRetrySummary,
+  retrying,
+  onRetrySummary,
+}: {
+  error: string
+  sermonId: string
+  canRetrySummary: boolean
+  retrying: boolean
+  onRetrySummary: () => void
+}) {
   return (
     <Card className="border-red-200 dark:border-red-800">
       <CardContent className="flex flex-col items-center justify-center py-16">
         <AlertCircle className="h-12 w-12 text-red-600 mb-4" />
         <h3 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
-          Failed to Load
+          Traitement échoué
         </h3>
         <p className="text-sm text-red-700 dark:text-red-300 text-center max-w-md">
           {error}
         </p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          {canRetrySummary && (
+            <Button
+              type="button"
+              className="gap-2 bg-indigo-600 hover:bg-indigo-600/90"
+              disabled={retrying}
+              onClick={onRetrySummary}
+            >
+              {retrying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Relancer le résumé
+            </Button>
+          )}
+          <Button variant="outline" asChild>
+            <Link href={`/sermon/${sermonId}`}>Voir le détail</Link>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )
