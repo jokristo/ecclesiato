@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,9 +13,17 @@ import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { User, Bell, Lock, Building2, CreditCard } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { BillingSettingsPanel } from '@/components/billing/BillingSettingsPanel'
 
-export default function SettingsPage() {
+function SettingsPageContent() {
   const { toast } = useToast()
+  const searchParams = useSearchParams()
+  const tabFromUrl = searchParams.get('tab')
+  const [activeTab, setActiveTab] = useState('profile')
+
+  useEffect(() => {
+    if (tabFromUrl === 'billing') setActiveTab('billing')
+  }, [tabFromUrl])
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [transcriptionComplete, setTranscriptionComplete] = useState(true)
   const [weeklyReport, setWeeklyReport] = useState(false)
@@ -29,7 +39,7 @@ export default function SettingsPage() {
         <p className="mt-1 text-slate-600">Gérez vos préférences et votre compte</p>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid h-auto w-full max-w-2xl grid-cols-2 gap-1 sm:grid-cols-5">
           <TabsTrigger value="profile" className="gap-2">
             <User className="h-4 w-4" />
@@ -290,51 +300,23 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="billing" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Plan actuel</CardTitle>
-              <CardDescription>Gérez votre abonnement et vos paiements</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="rounded-lg border border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50 p-6">
-                <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                  <div>
-                    <h3 className="text-2xl font-bold text-slate-900">Plan gratuit</h3>
-                    <p className="text-slate-600">5 prédications par mois</p>
-                  </div>
-                  <div className="text-left sm:text-right">
-                    <p className="text-3xl font-bold text-indigo-600">0€</p>
-                    <p className="text-sm text-slate-600">/ mois</p>
-                  </div>
-                </div>
-                <Button className="w-full bg-indigo-600 hover:bg-indigo-600/90">Passer à Premium</Button>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="mb-4 font-medium">Historique de facturation</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div>
-                      <p className="font-medium">Aucune facture</p>
-                      <p className="text-sm text-slate-500">Vous utilisez le plan gratuit</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="mb-4 font-medium">Moyen de paiement</h3>
-                <p className="mb-4 text-sm text-slate-600">Aucune méthode de paiement enregistrée</p>
-                <Button variant="outline">Ajouter une carte</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <BillingSettingsPanel />
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        </div>
+      }
+    >
+      <SettingsPageContent />
+    </Suspense>
   )
 }

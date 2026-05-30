@@ -2,6 +2,7 @@
 
 import { Check } from 'lucide-react';
 import Link from 'next/link';
+import { PlanSubscribeAction } from '@/components/billing/PlanSubscribeAction';
 
 export function PricingPage() {
   return (
@@ -51,12 +52,7 @@ export function PricingPage() {
               </li>
             </ul>
 
-            <Link
-              href="/login?plan=essentiel"
-              className="block w-full rounded-xl bg-blue-50 py-3 px-4 text-center font-semibold text-blue-700 transition-colors hover:bg-blue-100"
-            >
-              Sélectionner ce plan
-            </Link>
+            <PlanSubscribeAction planKey="essentiel" variant="light" />
           </div>
 
           <div className="relative flex flex-col rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-xl ring-4 ring-blue-600 ring-opacity-20 md:-translate-y-4">
@@ -93,12 +89,7 @@ export function PricingPage() {
               </li>
             </ul>
 
-            <Link
-              href="/login?plan=avance"
-              className="block w-full rounded-xl bg-blue-600 py-3 px-4 text-center font-semibold text-white shadow-lg shadow-blue-900 transition-colors hover:bg-blue-500"
-            >
-              Sélectionner ce plan
-            </Link>
+            <PlanSubscribeAction planKey="avance" variant="dark" />
           </div>
         </div>
 
